@@ -1,0 +1,94 @@
+Description:  This template deploys EC2 instances, Bastion/Web server instance and Test instance.
+
+Resources:
+  NewKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: MyKeyPair
+  WebServer: 
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0fa1de1d60de6a97e
+      InstanceType: t2.micro
+      KeyName: !Ref NewKeyPair
+      NetworkInterfaces:
+      - DeviceIndex: 0
+        SubnetId: !ImportValue 'assignment-PublicSubnet2Id'
+        GroupSet:
+          - !ImportValue
+            'Fn::Sub': 'assignment-WebServerSG'
+      Tags:
+        - Key: Name
+          Value: Bastion/Web server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Install php using script from assignment1a
+          yum update -y
+          amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+          service httpd start
+          yum install -y httpd mariadb-server php-mbstring php-xml
+          systemctl start httpd
+          systemctl enable httpd
+          usermod -a -G apache ec2-user
+          chown -R ec2-user:apache /var/www
+          chmod 2775 /var/www
+          find /var/www -type d -exec sudo chmod 2775 {} \;
+          find /var/www -type f -exec sudo chmod 0664 {} \;
+          echo "<?php echo '<h2> Installed PHP version: ' . phpversion() . '</h2>'; ?>" > /var/www/html/phpinfo.php
+          # Create required directories
+          cd
+          cd /var/www/html
+          mkdir cos80001
+          # Download and install phpMyAdmin
+          wget https://www.phpmyadmin.net/downloads/phpMyAdmin-latest-all-languages.tar.gz
+          mkdir phpMyAdmin && tar -xvzf phpMyAdmin-latest-all-languages.tar.gz -C phpMyAdmin --strip-components 1
+          rm phpMyAdmin-latest-all-languages.tar.gz
+          cd
+          # Change file name
+          cd /var/www/html/phpMyAdmin
+          mv config.sample.inc.php config.inc.php
+          # Download photoalbum
+          cd
+          cd /var/www/html/cos80001
+          sudo yum install git -y
+          sudo git clone https://github.com/beeeeeeeeeeeee/photoalbum.git
+
+  TestInstance: 
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0fa1de1d60de6a97e
+      InstanceType: t2.micro
+      KeyName: !Ref NewKeyPair
+      NetworkInterfaces:
+      - DeviceIndex: 0
+        SubnetId: !ImportValue 'assignment-PrivateSubnet2Id'
+        GroupSet:
+          - !ImportValue
+            'Fn::Sub': 'assignment-TestInstanceSG'
+      Tags:
+        - Key: Name
+          Value: Test Instance
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Install php using script from assignment1a
+          yum update -y
+          amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+          service httpd start
+          yum install -y httpd mariadb-server php-mbstring php-xml
+          systemctl start httpd
+          systemctl enable httpd
+          usermod -a -G apache ec2-user
+          chown -R ec2-user:apache /var/www
+          chmod 2775 /var/www
+          find /var/www -type d -exec sudo chmod 2775 {} \;
+          find /var/www -type f -exec sudo chmod 0664 {} \;
+          echo "<?php echo '<h2> Installed PHP version: ' . phpversion() . '</h2>'; ?>" > /var/www/html/phpinfo.php
+
+Outputs:
+  URL:
+    Description: URL of the web server website
+    Value: !Sub 'http://${WebServer.PublicDnsName}'
+
+    

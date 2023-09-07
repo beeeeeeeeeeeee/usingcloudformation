@@ -1,0 +1,43 @@
+Description:  This template deploys RDS instance allocated in private subnet1 in us-east-1a.
+
+Resources:
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub '${AWS::StackName}'
+      DBName: RDSdatabase
+      AvailabilityZone: us-east-1a
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      Engine: mysql
+      EngineVersion: "8.0.25"
+      MasterUsername: admin
+      MasterUserPassword: admin123
+      StorageType: gp2
+      PubliclyAccessible: false
+      MultiAZ: false
+      VPCSecurityGroups:
+        -  !ImportValue
+              'Fn::Sub': 'assignment-DBServerSGId'
+      DBSubnetGroupName: !Ref DBSubnetGroup
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup 
+    Properties: 
+      DBSubnetGroupDescription: only associate with private subnets
+      SubnetIds: 
+        - !ImportValue
+              'Fn::Sub': 'assignment-PrivateSubnet1Id'
+        - !ImportValue
+              'Fn::Sub': 'assignment-PrivateSubnet2Id'
+
+Outputs:
+  RDSInstance:
+    Description: A reference to the created RDS instance
+    Value: !Ref RDSInstance
+
+  RDSEndpoint:
+    Description: A reference to database endpoint
+    Value: !GetAtt RDSInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}-RDSEndpoint'
